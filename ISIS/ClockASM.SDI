@@ -1,0 +1,494 @@
+,,,  Hours             EQU R0
+,,,  Minutes           EQU R1
+,,,  Seconds           EQU R2
+,,,  TickCounterT0     EQU R6
+,,,  HalfSecondCounter EQU R5
+,,,
+,,,  CanShowHours    EQU 00H
+,,,  CanShowMinutes  EQU 01H
+,,,  CanShowSeconds  EQU 02H
+,,,  IsInterEX0      EQU 03H
+,,,  HalfSecondFlag  EQU 03H
+,,,  IsSignal_1000   EQU 04H
+,,,  IsSignal_500    EQU 05H
+,,,  IsSignal_Pause  EQU 06H
+,,,
+,,,  ShowDigitsCounter   EQU 032H
+,,,  FlashInInterAdders  EQU 033H
+,,,  FastTimerLowAdders  EQU 034H
+,,,  FastTimerHighAdders EQU 035H
+,,,
+,,,
+,,,
+,,,  ORG 00h
+0000,02 01 0B,,  JMP Start
+,,,
+,,,  ORG 03h
+0003,02 00 1E,,  JMP InterProc_INT0
+,,,  ORG 0Bh
+000B,02 00 7B,,  JMP InterProc_TF0
+,,,  ORG 1Bh
+001B,02 01 00,,  JMP InterProc_TF1
+,,,
+001E,,InterProc_INT0,  InterProc_INT0:
+,,,;   MOV P2, #11111111b
+,,,;   ORL P3, #11111110b
+001E,C3,,    CLR C ;устанавливаем С в 0
+001F,20 A0 15,,   JB P2.0, SetNotHours         ;переход если бит установлен
+0022,20 B7 01,,    JB P3.7, NotIncHours        ;переход если бит установлен
+0025,08,,     INC Hours                          ;увеличиваем часы
+,,,
+0026,,NotIncHours,    NotIncHours:
+0026,20 B6 01,,    JB P3.6, NotDecHours        ;переход если бит установлен
+0029,18,,     DEC Hours                          ;уменьшаем часы
+,,,
+002A,,NotDecHours,    NotDecHours:
+002A,B8 64 02,,    CJNE Hours, #100, ContinueHoursCheck ;если Hours != 100, переходим к ContinueHoursCheck
+002D,78 00,,     MOV Hours, #0 ;загружаем 0 в часы
+,,,
+002F,,ContinueHoursCheck,    ContinueHoursCheck:
+002F,B8 FF 3E,,    CJNE Hours, #-1, EndOfTimeSet ;если Hours != -1, переходим к EndOfTimeSet
+0032,78 63,,     MOV Hours, #99 ;записываем в Hours 99
+0034,02 00 70,,    JMP EndOfTimeSet ;переходим к EndOfTimeSet
+,,,
+0037,,SetNotHours,   SetNotHours:
+0037,20 A1 1B,,   JB P2.1, SetNotMinutes       ;переход, если бит не установлен
+003A,20 B7 01,,    JB P3.7, NotIncMinutes      ;переход, если бит не установлен
+003D,09,,     INC Minutes ;увеличиваем минуты
+,,,
+003E,,NotIncMinutes,    NotIncMinutes:
+003E,20 B6 01,,    JB P3.6, NotDecMinutes ;переход, если бит не установлен
+0041,19,,     DEC Minutes        ;уменьшаем минуты
+,,,
+0042,,NotDecMinutes,    NotDecMinutes:
+0042,B9 3C 05,,    CJNE Minutes, #60, ContinueMinutesCheck ;если минуты != 60, проверяем дальше минуты
+0045,79 00,,     MOV Minutes, #0    ;записываем 0 в минуты
+0047,08,,     INC Hours                  ;уменьшаем часы
+0048,80 E0,,     JMP NotDecHours    ;переход к NotDecHours
+,,,
+004A,,ContinueMinutesCheck,    ContinueMinutesCheck:
+004A,B9 FF 23,,    CJNE Minutes, #-1, EndOfTimeSet     ;если минуты != -1, переходим к EndOfTimeSet
+004D,18,,     DEC Hours                          ;уменьшаем часы
+004E,79 3B,,     MOV Minutes, #59           ;в минуты записываем 59
+0050,80 D8,,     JMP NotDecHours            ;переходим к NotDecHours
+0052,02 00 70,,    JMP EndOfTimeSet            ;переходим к EndOfTimeSet
+,,,
+0055,,SetNotMinutes,   SetNotMinutes:
+0055,20 A2 18,,   JB P2.2, EndOfTimeSet        ;переход, если бит не установлен
+0058,20 B7 01,,    JB P3.7, NotIncSeconds      ;переход, если бит не установлен
+005B,0A,,     INC Seconds        ;увеличиваем секунды
+,,,
+005C,,NotIncSeconds,    NotIncSeconds:
+005C,20 B6 01,,    JB P3.6, NotDecSeconds      ;переход, если бит не установлен
+005F,1A,,     DEC Seconds                        ; умньшаем секунды
+,,,
+0060,,NotDecSeconds,    NotDecSeconds:
+0060,BA 3C 05,,    CJNE Seconds, #60, ContinueSecondsCheck ;если секунды != 60, проверяем дальше
+0063,7A 00,,     MOV Seconds, #0    ;записываем 0 в секунды
+0065,09,,     INC Minutes                ;увеличиваем минуты
+0066,80 DA,,     JMP NotDecMinutes  ;переход к NotDecMinutes
+,,,
+0068,,ContinueSecondsCheck,    ContinueSecondsCheck:
+0068,BA FF 05,,    CJNE Seconds, #-1, EndOfTimeSet ;если секунды != -1, переходим к EndOfTimeSet
+006B,19,,     DEC Minutes                ;уменьшаем минуты
+006C,7A 3B,,     MOV Seconds, #59   ;уменьшаем секунды
+006E,80 D2,,     JMP NotDecMinutes  ;переход к NotDecMinutes
+,,,
+0070,,EndOfTimeSet,   EndOfTimeSet:
+0070,75 33 0A,,   MOV  FlashInInterAdders, #10
+0073,D2 03,,   SETB IsInterEX0
+0075,02 01 56,,   JMP  IfIntEX0
+0078,,IfIntEX0_RET,   IfIntEX0_RET:
+0078,C2 03,,   CLR  IsInterEX0
+007A,32,,  RETI
+,,,
+007B,,InterProc_TF0,  InterProc_TF0:
+007B,C2 8D,,   CLR  TF0
+007D,75 8C B1,,   MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+0080,75 8A DF,,   MOV  TL0,  #low(0B1DFh)
+0083,0E,,   INC  TickCounterT0
+0084,BE 19 78,,   CJNE TickCounterT0, #25, NotSufficientTicks  ; 0.5 sec
+0087,7E 00,,    MOV TickCounterT0, #0
+0089,B2 03,,    CPL HalfSecondFlag
+008B,0D,,    INC HalfSecondCounter
+,,,
+008C,,Set_T1_Mode,    Set_T1_Mode:
+008C,30 06 13,,    JNB IsSignal_Pause, DoNot_Pause
+008F,BD 00 07,,     CJNE HalfSecondCounter, #0, EnfOfSet_Pause
+0092,C2 8E,,      CLR TR1
+0094,C2 B0,,      CLR P3.0
+0096,02 00 EA,,      JMP  EndOfSignalControl
+0099,,EnfOfSet_Pause,     EnfOfSet_Pause:
+0099,BD 01 4E,,     CJNE HalfSecondCounter, #1, EndOfSignalControl
+009C,7D 00,,      MOV HalfSecondCounter, #0
+009E,C2 06,,      CLR IsSignal_Pause         ; One of other flags must be true
+00A0,80 EA,,      JMP Set_T1_Mode
+00A2,,DoNot_Pause,    DoNot_Pause:
+00A2,30 04 21,,    JNB IsSignal_1000, DoNot_1000
+00A5,BD 00 11,,     CJNE HalfSecondCounter, #0, EnfOfSet_1000
+00A8,75 35 FE,,      MOV  FastTimerHighAdders, #high(0FE0Bh) ; 2000 Hz
+00AB,75 34 0B,,      MOV  FastTimerLowAdders,  #low(0FE0Bh)
+00AE,85 35 8D,,      MOV  TH1,  FastTimerHighAdders
+00B1,85 34 8B,,      MOV  TL1,  FastTimerLowAdders
+00B4,D2 8E,,      SETB TR1
+00B6,02 00 EA,,      JMP  EndOfSignalControl
+00B9,,EnfOfSet_1000,     EnfOfSet_1000:
+00B9,BD 02 2E,,     CJNE HalfSecondCounter, #2, EndOfSignalControl
+00BC,7D 00,,      MOV HalfSecondCounter, #0
+00BE,C2 04,,      CLR  IsSignal_1000
+00C0,D2 06,,      SETB IsSignal_Pause
+00C2,D2 05,,      SETB IsSignal_500
+00C4,80 C6,,      JMP Set_T1_Mode
+00C6,,DoNot_1000,    DoNot_1000:
+00C6,30 05 21,,    JNB IsSignal_500, DoNot_500
+00C9,BD 00 11,,     CJNE HalfSecondCounter, #0, EnfOfSet_500
+00CC,75 35 FF,,      MOV  FastTimerHighAdders, #high(0FF05h) ; 1000 Hz
+00CF,75 34 05,,      MOV  FastTimerLowAdders,  #low(0FF05h)
+00D2,85 35 8D,,      MOV  TH1,  FastTimerHighAdders
+00D5,85 34 8B,,      MOV  TL1,  FastTimerLowAdders
+00D8,D2 8E,,      SETB TR1
+00DA,02 00 EA,,      JMP  EndOfSignalControl
+00DD,,EnfOfSet_500,     EnfOfSet_500:
+00DD,BD 01 0A,,     CJNE HalfSecondCounter, #1, EndOfSignalControl
+00E0,7D 00,,      MOV HalfSecondCounter, #0
+00E2,C2 05,,      CLR  IsSignal_500
+00E4,D2 06,,      SETB IsSignal_Pause
+00E6,D2 04,,      SETB IsSignal_1000
+00E8,80 A2,,      JMP Set_T1_Mode
+00EA,,DoNot_500,    DoNot_500:
+00EA,,EndOfSignalControl,    EndOfSignalControl:
+,,,
+00EA,30 03 12,,    JNB HalfSecondFlag, NotSufficientTicks
+00ED,0A,,    INC  Seconds
+00EE,BA 3C 03,,    CJNE Seconds, #60, NotSufficientSeconds
+00F1,7A 00,,     MOV  Seconds, #0
+00F3,09,,     INC  Minutes
+00F4,,NotSufficientSeconds,    NotSufficientSeconds:
+00F4,B9 3C 03,,    CJNE Minutes, #60, NotSufficientMinutes
+00F7,79 00,,     MOV  Minutes, #0
+00F9,08,,     INC  Hours
+00FA,,NotSufficientMinutes,    NotSufficientMinutes:
+00FA,B8 64 02,,    CJNE Hours, #100, NotSufficientHours
+00FD,78 00,,     MOV  Hours, #0
+00FF,,NotSufficientHours,    NotSufficientHours:
+00FF,,NotSufficientTicks,   NotSufficientTicks:
+00FF,32,,  RETI
+,,,
+0100,,InterProc_TF1,  InterProc_TF1:
+0100,C2 8F,,   CLR  TF1
+0102,B2 B0,,   CPL  P3.0
+0104,85 35 8D,,   MOV  TH1,  FastTimerHighAdders
+0107,85 34 8B,,   MOV  TL1,  FastTimerLowAdders
+010A,32,,  RETI
+,,,
+010B,,Start,Start:
+,,,
+010B,75 A8 00,,  MOV  IE, #0
+,,,
+010E,78 00,,  MOV  Hours,             #0
+0110,79 00,,  MOV  Minutes,           #0
+0112,7A 00,,  MOV  Seconds,           #0
+0114,7E 00,,  MOV  TickCounterT0,     #0
+0116,7D 00,,  MOV  HalfSecondCounter, #0
+0118,75 81 70,,  MOV  SP, #70h
+011B,75 80 00,,  MOV  P0, #00000000b
+011E,75 90 00,,  MOV  P1, #00000000b
+0121,75 A0 FF,,  MOV  P2, #11111111b
+0124,75 B0 FE,,  MOV  P3, #11111110b
+,,,
+,,,
+,,,
+0127,D2 00,,  SETB CanShowHours
+0129,D2 01,,  SETB CanShowMinutes
+012B,D2 02,,  SETB CanShowSeconds
+012D,D2 03,,  SETB HalfSecondFlag
+012F,C2 03,,  CLR  IsInterEX0
+0131,75 32 00,,  MOV  ShowDigitsCounter, #0
+,,,
+,,,
+,,,
+0134,C2 8C,,  CLR  TR0
+0136,C2 8E,,  CLR  TR1
+0138,75 8C B1,,  MOV  TH0,  #high(0B1DFh)
+013B,75 8A DF,,  MOV  TL0,  #low(0B1DFh)
+013E,75 89 11,,  MOV  TMOD, #00010001b
+,,,
+0141,D2 A9,,  SETB ET0
+0143,D2 AB,,  SETB ET1
+0145,D2 AF,,  SETB EA
+,,,
+,,,
+0147,,MainLoop,MainLoop:
+,,,
+0147,12 02 F4,,  CALL ShowTime
+014A,75 A0 FF,,  MOV  P2, #11111111b
+,,,
+014D,30 A3 3F,,  JNB P2.3, TimeCountActivate
+0150,C2 8C,,   CLR  TR0     ; !!!
+0152,C2 8E,,   CLR  TR1     ; !!!
+0154,D2 A8,,   SETB EX0     ; !!!
+0156,,IfIntEX0,   IfIntEX0:
+0156,05 32,,   INC  ShowDigitsCounter
+0158,E5 32,,   MOV  A, ShowDigitsCounter
+015A,B4 0F 27,,   CJNE A, #15, DoNotFlash
+015D,75 32 00,,    MOV ShowDigitsCounter, #0
+0160,20 A0 09,,    JB P2.0, FlashNotHours
+0163,D2 01,,     SETB CanShowMinutes
+0165,D2 02,,     SETB CanShowSeconds
+0167,B2 00,,     CPL  CanShowHours
+0169,02 01 84,,     JMP  DoNotFlash
+016C,,FlashNotHours,    FlashNotHours:
+016C,20 A1 09,,    JB P2.1, FlashNotMinutes
+016F,D2 00,,     SETB CanShowHours
+0171,D2 02,,     SETB CanShowSeconds
+0173,B2 01,,     CPL  CanShowMinutes
+0175,02 01 84,,     JMP  DoNotFlash
+0178,,FlashNotMinutes,    FlashNotMinutes:
+0178,20 A2 09,,    JB P2.2, DoNotFlash
+017B,D2 00,,     SETB CanShowHours
+017D,D2 01,,     SETB CanShowMinutes
+017F,B2 02,,     CPL  CanShowSeconds
+0181,02 01 84,,     JMP  DoNotFlash
+0184,,DoNotFlash,    DoNotFlash:
+0184,30 03 36,,   JNB  IsInterEX0, EndOfFlashing
+0187,12 02 F4,,   CALL ShowTime
+018A,D5 33 C9,,   djnz FlashInInterAdders, IfIntEX0
+018D,01 78,,   JMP  IfIntEX0_RET
+018F,,TimeCountActivate,  TimeCountActivate:
+018F,20 8C 2B,,   JB TR0, TimeCountIsActive
+0192,D2 00,,    SETB CanShowHours
+0194,D2 01,,    SETB CanShowMinutes
+0196,D2 02,,    SETB CanShowSeconds
+0198,D2 03,,    SETB HalfSecondFlag
+019A,75 B0 FE,,    MOV  P3, #11111110b
+019D,7D 00,,    MOV  HalfSecondCounter, #0
+019F,D2 04,,    SETB IsSignal_1000
+01A1,C2 05,,    CLR  IsSignal_500
+01A3,C2 06,,    CLR  IsSignal_Pause
+01A5,75 8C B1,,    MOV  TH0,  #high(0B1DFh) ; 50 Hz
+01A8,75 8A DF,,    MOV  TL0,  #low(0B1DFh)
+01AB,75 35 FE,,    MOV  FastTimerHighAdders, #high(0FE0Bh) ; 2000 Hz
+01AE,75 34 0B,,    MOV  FastTimerLowAdders,  #low(0FE0Bh)
+01B1,85 35 8D,,    MOV  TH1,  FastTimerHighAdders
+01B4,85 34 8B,,    MOV  TL1,  FastTimerLowAdders
+01B7,C2 A8,,    CLR  EX0     ; !!!
+01B9,D2 8C,,    SETB TR0     ; !!!
+01BB,D2 8E,,    SETB TR1     ; !!!
+01BD,,TimeCountIsActive,  TimeCountIsActive:
+,,,  ;
+01BD,,EndOfFlashing,  EndOfFlashing:
+,,,
+01BD,80 88,,JMP MainLoop
+,,,;============================================
+,,,
+01BF,,IndiShowDigit,  IndiShowDigit: ; A - DigitVal, B - Pos
+01BF,75 80 00,,    mov P0, #0
+01C2,75 90 00,,    mov P1, #0
+,,,
+01C5,C5 F0,,    XCH  A, B
+01C7,B4 01 05,,    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+01CA,D2 80,,    SETB P0.0
+01CC,02 02 0A,,    JMP EndOfSetDigit
+01CF,,PosNot_1,    PosNot_1:
+01CF,B4 02 05,,    CJNE A, #2, PosNot_2
+01D2,D2 81,,    SETB P0.1
+01D4,02 02 0A,,    JMP EndOfSetDigit
+01D7,,PosNot_2,    PosNot_2:
+01D7,B4 03 05,,    CJNE A, #3, PosNot_3
+01DA,D2 82,,    SETB P0.2
+01DC,02 02 0A,,    JMP EndOfSetDigit
+01DF,,PosNot_3,    PosNot_3:
+01DF,B4 04 05,,    CJNE A, #4, PosNot_4
+01E2,D2 83,,    SETB P0.3
+01E4,02 02 0A,,    JMP EndOfSetDigit
+01E7,,PosNot_4,    PosNot_4:
+01E7,B4 05 05,,    CJNE A, #5, PosNot_5
+01EA,D2 84,,    SETB P0.4
+01EC,02 02 0A,,    JMP EndOfSetDigit
+01EF,,PosNot_5,    PosNot_5:
+01EF,B4 06 05,,    CJNE A, #6, PosNot_6
+01F2,D2 85,,    SETB P0.5
+01F4,02 02 0A,,    JMP EndOfSetDigit
+01F7,,PosNot_6,    PosNot_6:
+01F7,B4 07 05,,    CJNE A, #7, PosNot_7
+01FA,D2 86,,    SETB P0.6
+01FC,02 02 0A,,    JMP EndOfSetDigit
+01FF,,PosNot_7,    PosNot_7:
+01FF,B4 08 05,,    CJNE A, #8, PosNot_8
+0202,D2 87,,    SETB P0.7
+0204,02 02 0A,,    JMP EndOfSetDigit
+0207,,PosNot_8,    PosNot_8:
+0207,02 02 AE,,    JMP EndOfShowDigit
+020A,,EndOfSetDigit,    EndOfSetDigit:
+,,,
+020A,C5 F0,,    XCH A, B
+020C,B4 00 0F,,    CJNE A, #0, DigitNot_0
+020F,D2 90,,    SETB P1.0
+0211,D2 91,,    SETB P1.1
+0213,D2 92,,    SETB P1.2
+0215,D2 93,,    SETB P1.3
+0217,D2 94,,    SETB P1.4
+0219,D2 95,,    SETB P1.5
+021B,02 02 AE,,    JMP EndOfShowDigit
+021E,,DigitNot_0,    DigitNot_0:
+021E,B4 01 07,,    CJNE A, #1, DigitNot_1
+0221,D2 91,,    SETB P1.1
+0223,D2 92,,    SETB P1.2
+0225,02 02 AE,,    JMP EndOfShowDigit
+0228,,DigitNot_1,    DigitNot_1:
+0228,B4 02 0D,,    CJNE A, #2, DigitNot_2
+022B,D2 90,,    SETB P1.0
+022D,D2 91,,    SETB P1.1
+022F,D2 96,,    SETB P1.6
+0231,D2 94,,    SETB P1.4
+0233,D2 93,,    SETB P1.3
+0235,02 02 AE,,    JMP EndOfShowDigit
+0238,,DigitNot_2,    DigitNot_2:
+0238,B4 03 0D,,    CJNE A, #3, DigitNot_3
+023B,D2 90,,    SETB P1.0
+023D,D2 91,,    SETB P1.1
+023F,D2 96,,    SETB P1.6
+0241,D2 92,,    SETB P1.2
+0243,D2 93,,    SETB P1.3
+0245,02 02 AE,,    JMP EndOfShowDigit
+0248,,DigitNot_3,    DigitNot_3:
+0248,B4 04 0B,,    CJNE A, #4, DigitNot_4
+024B,D2 95,,    SETB P1.5
+024D,D2 96,,    SETB P1.6
+024F,D2 91,,    SETB P1.1
+0251,D2 92,,    SETB P1.2
+0253,02 02 AE,,    JMP EndOfShowDigit
+0256,,DigitNot_4,    DigitNot_4:
+0256,B4 05 0D,,    CJNE A, #5, DigitNot_5
+0259,D2 90,,    SETB P1.0
+025B,D2 95,,    SETB P1.5
+025D,D2 96,,    SETB P1.6
+025F,D2 92,,    SETB P1.2
+0261,D2 93,,    SETB P1.3
+0263,02 02 AE,,    JMP EndOfShowDigit
+0266,,DigitNot_5,    DigitNot_5:
+0266,B4 06 0F,,    CJNE A, #6, DigitNot_6
+0269,D2 90,,    SETB P1.0
+026B,D2 95,,    SETB P1.5
+026D,D2 94,,    SETB P1.4
+026F,D2 96,,    SETB P1.6
+0271,D2 92,,    SETB P1.2
+0273,D2 93,,    SETB P1.3
+0275,02 02 AE,,    JMP EndOfShowDigit
+0278,,DigitNot_6,    DigitNot_6:
+0278,B4 07 09,,    CJNE A, #7, DigitNot_7
+027B,D2 90,,    SETB P1.0
+027D,D2 91,,    SETB P1.1
+027F,D2 92,,    SETB P1.2
+0281,02 02 AE,,    JMP EndOfShowDigit
+0284,,DigitNot_7,    DigitNot_7:
+0284,B4 08 13,,    CJNE A, #8, DigitNot_8
+0287,D2 90,,    SETB P1.0
+0289,D2 91,,    SETB P1.1
+028B,D2 92,,    SETB P1.2
+028D,D2 93,,    SETB P1.3
+028F,D2 94,,    SETB P1.4
+0291,D2 95,,    SETB P1.5
+0293,D2 96,,    SETB P1.6
+0295,D2 97,,    SETB P1.7
+0297,02 02 AE,,    JMP EndOfShowDigit
+029A,,DigitNot_8,    DigitNot_8:
+029A,B4 09 0F,,    CJNE A, #9, DigitNot_9
+029D,D2 90,,    SETB P1.0
+029F,D2 91,,    SETB P1.1
+02A1,D2 95,,    SETB P1.5
+02A3,D2 96,,    SETB P1.6
+02A5,D2 92,,    SETB P1.2
+02A7,D2 93,,    SETB P1.3
+02A9,02 02 AE,,    JMP EndOfShowDigit
+02AC,,DigitNot_9,    DigitNot_9:
+02AC,D2 96,,    SETB P1.6
+,,,
+02AE,,EndOfShowDigit,    EndOfShowDigit:
+02AE,75 30 04,,    MOV 30h, #4
+02B1,,WaitShowDigit,    WaitShowDigit:
+02B1,75 31 EB,,    MOV 31h, #235
+02B4,,WaitShowDigit1,    WaitShowDigit1:
+02B4,D5 31 FD,,    DJNZ 31h, WaitShowDigit1
+02B7,D5 30 F7,,    DJNZ 30h, WaitShowDigit
+,,,
+02BA,22,,  RET ; End of IndiShowDigit
+,,,;--------------------------------------------
+,,,
+02BB,,ShowHours,  ShowHours:
+02BB,E8,,    MOV A, Hours
+02BC,75 F0 0A,,    MOV B, #10
+02BF,84,,    DIV AB
+,,,
+02C0,AF F0,,    MOV R7, B
+02C2,75 F0 01,,    MOV B, #1
+02C5,31 BF,,    CALL IndiShowDigit
+,,,
+02C7,CF,,    XCH A, R7
+02C8,75 F0 02,,    MOV B, #2
+02CB,31 BF,,    CALL IndiShowDigit
+02CD,22,,  RET  ; End of ShowHours
+,,,;--------------------------------------------
+,,,
+02CE,,ShowMinutes,  ShowMinutes:
+02CE,E9,,    MOV A, Minutes
+02CF,75 F0 0A,,    MOV B, #10
+02D2,84,,    DIV AB
+,,,
+02D3,AF F0,,    MOV R7, B
+02D5,75 F0 04,,    MOV B, #4
+02D8,31 BF,,    CALL IndiShowDigit
+,,,
+02DA,CF,,    XCH A, R7
+02DB,75 F0 05,,    MOV B, #5
+02DE,31 BF,,    CALL IndiShowDigit
+02E0,22,,  RET  ; End of ShowMinutes
+,,,;--------------------------------------------
+,,,
+02E1,,ShowSeconds,  ShowSeconds:
+02E1,EA,,    MOV A, Seconds
+02E2,75 F0 0A,,    MOV B, #10
+02E5,84,,    DIV AB
+,,,
+02E6,AF F0,,    MOV R7, B
+02E8,75 F0 07,,    MOV B, #7
+02EB,31 BF,,    CALL IndiShowDigit
+,,,
+02ED,CF,,    XCH A, R7
+02EE,75 F0 08,,    MOV B, #8
+02F1,31 BF,,    CALL IndiShowDigit
+02F3,22,,  RET  ; End of ShowSeconds
+,,,;--------------------------------------------
+,,,
+02F4,,ShowTime,  ShowTime:
+02F4,75 80 00,,    mov P0, #0
+02F7,75 90 00,,    mov P1, #0
+02FA,30 00 02,,    JNB CanShowHours, DontShowHours
+02FD,51 BB,,    CALL ShowHours
+02FF,,DontShowHours,    DontShowHours:
+02FF,30 01 02,,    JNB CanShowMinutes, DontShowMinutes
+0302,51 CE,,    CALL ShowMinutes
+0304,,DontShowMinutes,    DontShowMinutes:
+0304,30 02 02,,    JNB CanShowSeconds, DontShowSeconds
+0307,51 E1,,    CALL ShowSeconds
+0309,,DontShowSeconds,    DontShowSeconds:
+,,,
+0309,74 0A,,    MOV  A, #10
+030B,75 F0 03,,    MOV  B, #3
+030E,31 BF,,    CALL IndiShowDigit
+0310,75 F0 06,,    MOV  B, #6
+0313,31 BF,,    CALL IndiShowDigit
+0315,22,,  RET  ; End of ShowTime
+,,,;--------------------------------------------
+,,,;============================================
+,,,
+000E,,,END
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,

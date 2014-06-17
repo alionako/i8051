@@ -1,0 +1,319 @@
+  Hours          EQU R0
+  Minutes        EQU R1
+  Seconds        EQU R2
+  TickCounterT0  EQU R6
+ 
+  CanShowHours   EQU 00H 
+  CanShowMinutes EQU 01H
+  CanShowSeconds EQU 02H
+
+  JMP Start
+
+  ORG 03h
+  JMP InterProc_INT0
+  ORG 0Bh
+  JMP InterProc_TF0
+  ORG 1Bh
+  JMP InterProc_TF1
+
+  InterProc_INT0:
+
+  RETI 
+  
+  InterProc_TF0:
+  CLR  TF0
+  MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+  MOV  TL0,  #low(0B1DFh)
+  INC  TickCounterT0
+  CJNE TickCounterT0, #50, NotSufficientTicks
+  MOV  TickCounterT0, #0
+  INC  Seconds 
+  CJNE Seconds, #60, NotSufficientSeconds
+  MOV  Seconds, #0
+  INC  Minutes           
+  NotSufficientSeconds:
+  CJNE Minutes, #60, NotSufficientMinutes
+  MOV  Minutes, #0
+  INC  Hours           
+  NotSufficientMinutes:
+  CJNE Hours, #99, NotSufficientHours
+  MOV  Hours, #0
+  NotSufficientHours:
+  NotSufficientTicks:
+  RETI
+
+  InterProc_TF1:
+  CLR  TF1
+  
+  RETI
+
+Start:
+
+  MOV  IE, #0
+  ;CLR  IE
+
+  MOV  Hours,         #0
+  MOV  Minutes,       #0
+  MOV  Seconds,       #0
+  MOV  TickCounterT0, #0
+  MOV  SP,      #70h 
+  MOV  P0, #00000000b
+  MOV  P1, #00000000b
+  
+  SETB CanShowHours    
+  SETB CanShowMinutes 
+  SETB CanShowSeconds 
+
+
+
+
+  CLR  TR0
+  CLR  TR1
+  MOV  TH0,  #high(0B1DFh) 
+  MOV  TL0,  #low(0B1DFh)
+  MOV  TMOD, #00010001b
+  
+  SETB ET0
+  SETB EA
+  
+  SETB TR0
+
+  MOV A, #11111111b
+   
+MainLoop:
+ 
+  CALL ShowTime
+
+
+  MOV P2, #11111111b
+  
+;  MOV 32h, #255
+;  Wait_1: 
+;  NOP
+;  DJNZ 32h, Wait_1
+
+  MOV A, P2
+
+  MOV P3, A
+
+JMP MainLoop
+
+
+
+
+;============================================
+
+  IndiShowDigit: ; A - DigitVal, B - Pos
+    mov P0, #0
+    mov P1, #0
+    
+    XCH  A, B
+    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+    SETB P0.0
+    JMP EndOfSetDigit
+    PosNot_1:
+    CJNE A, #2, PosNot_2
+    SETB P0.1
+    JMP EndOfSetDigit
+    PosNot_2:
+    CJNE A, #3, PosNot_3
+    SETB P0.2
+    JMP EndOfSetDigit
+    PosNot_3:
+    CJNE A, #4, PosNot_4
+    SETB P0.3
+    JMP EndOfSetDigit
+    PosNot_4:
+    CJNE A, #5, PosNot_5
+    SETB P0.4
+    JMP EndOfSetDigit
+    PosNot_5:
+    CJNE A, #6, PosNot_6
+    SETB P0.5
+    JMP EndOfSetDigit
+    PosNot_6:
+    CJNE A, #7, PosNot_7
+    SETB P0.6
+    JMP EndOfSetDigit
+    PosNot_7:
+    CJNE A, #8, PosNot_8
+    SETB P0.7
+    JMP EndOfSetDigit
+    PosNot_8:
+    JMP EndOfShowDigit
+    EndOfSetDigit:
+    
+    XCH A, B
+    CJNE A, #0, DigitNot_0
+    SETB P1.0
+    SETB P1.1
+    SETB P1.2
+    SETB P1.3
+    SETB P1.4
+    SETB P1.5
+    JMP EndOfShowDigit
+    DigitNot_0:
+    CJNE A, #1, DigitNot_1
+    SETB P1.1
+    SETB P1.2
+    JMP EndOfShowDigit
+    DigitNot_1:
+    CJNE A, #2, DigitNot_2
+    SETB P1.0
+    SETB P1.1
+    SETB P1.6
+    SETB P1.4
+    SETB P1.3 
+    JMP EndOfShowDigit
+    DigitNot_2:
+    CJNE A, #3, DigitNot_3
+    SETB P1.0
+    SETB P1.1
+    SETB P1.6
+    SETB P1.2
+    SETB P1.3
+    JMP EndOfShowDigit
+    DigitNot_3:
+    CJNE A, #4, DigitNot_4
+    SETB P1.5
+    SETB P1.6
+    SETB P1.1
+    SETB P1.2
+    JMP EndOfShowDigit
+    DigitNot_4:
+    CJNE A, #5, DigitNot_5
+    SETB P1.0
+    SETB P1.5
+    SETB P1.6
+    SETB P1.2
+    SETB P1.3
+    JMP EndOfShowDigit
+    DigitNot_5:
+    CJNE A, #6, DigitNot_6
+    SETB P1.0
+    SETB P1.5
+    SETB P1.4
+    SETB P1.6
+    SETB P1.2
+    SETB P1.3
+    JMP EndOfShowDigit
+    DigitNot_6:
+    CJNE A, #7, DigitNot_7
+    SETB P1.0
+    SETB P1.1
+    SETB P1.2
+    JMP EndOfShowDigit
+    DigitNot_7:
+    CJNE A, #8, DigitNot_8
+    SETB P1.0
+    SETB P1.1
+    SETB P1.2
+    SETB P1.3
+    SETB P1.4
+    SETB P1.5
+    SETB P1.6
+    SETB P1.7
+    JMP EndOfShowDigit
+    DigitNot_8:
+    CJNE A, #9, DigitNot_9
+    SETB P1.0
+    SETB P1.1
+    SETB P1.5
+    SETB P1.6
+    SETB P1.2
+    SETB P1.3
+    JMP EndOfShowDigit
+    DigitNot_9:
+    SETB P1.6
+    
+    EndOfShowDigit:
+    MOV 30h, #2
+    WaitShowDigit:
+    MOV 31h, #255
+    WaitShowDigit1:
+    DJNZ 31h, WaitShowDigit1
+    DJNZ 30h, WaitShowDigit
+	    
+
+
+
+  RET ; End of IndiShowDigit
+;--------------------------------------------
+ 
+  ShowHours:
+    MOV A, Hours
+    MOV B, #10
+    DIV AB
+
+    MOV R7, B
+    MOV B, #1
+    CALL IndiShowDigit
+
+    XCH A, R7
+    MOV B, #2
+    CALL IndiShowDigit
+  RET  ; End of ShowHours 
+;--------------------------------------------
+
+  ShowMinutes:
+    MOV A, Minutes
+    MOV B, #10
+    DIV AB
+    
+    MOV R7, B
+    MOV B, #4
+    CALL IndiShowDigit
+    
+    XCH A, R7
+    MOV B, #5
+    CALL IndiShowDigit
+  RET  ; End of ShowMinutes 
+;--------------------------------------------
+
+  ShowSeconds:
+    MOV A, Seconds
+    MOV B, #10
+    DIV AB
+    
+    MOV R7, B
+    MOV B, #7
+    CALL IndiShowDigit
+    
+    XCH A, R7
+    MOV B, #8
+    CALL IndiShowDigit
+  RET  ; End of ShowSeconds 
+;--------------------------------------------
+
+  ShowTime: 
+    mov P0, #0
+    mov P1, #0    
+    JBN CanShowHours, DontShowHours
+    CALL ShowHours
+    DontShowHours:
+    JBN CanShowMinutes, DontShowMinutes
+    CALL ShowMinutes
+    DontShowMinutes:
+    JBN CanShowSeconds, DontShowSeconds
+    CALL ShowSeconds
+    DontShowSeconds:
+
+    MOV  A, #10
+    MOV  B, #3
+    CALL IndiShowDigit
+    MOV  B, #6
+    CALL IndiShowDigit
+  RET  ; End of ShowTime
+;--------------------------------------------
+;============================================
+  
+  END
+
+
+
+         
+
+
+
+
+

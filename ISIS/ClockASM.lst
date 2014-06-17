@@ -1,0 +1,770 @@
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 1
+
+
+
+
+
+       MCS-51 Family Macro Assembler   A S E M - 5 1   V 1.3
+       =====================================================
+
+
+
+	Source File:	ClockASM.asm
+	Object File:	ClockASM.hex
+	List File:	ClockASM.lst
+
+
+
+ Line  I  Addr  Code            Source
+
+    1:		R	 R0	  Hours             EQU R0
+    2:		R	 R1	  Minutes           EQU R1
+    3:		R	 R2	  Seconds           EQU R2
+    4:		R	 R6	  TickCounterT0     EQU R6
+    5:		R	 R5	  HalfSecondCounter EQU R5
+    6:
+    7:		N      0000	  CanShowHours    EQU 00H
+    8:		N      0001	  CanShowMinutes  EQU 01H
+    9:		N      0002	  CanShowSeconds  EQU 02H
+   10:		N      0003	  IsInterEX0      EQU 03H
+   11:		N      0003	  HalfSecondFlag  EQU 03H
+   12:		N      0004	  IsSignal_1000   EQU 04H
+   13:		N      0005	  IsSignal_500    EQU 05H
+   14:		N      0006	  IsSignal_Pause  EQU 06H
+   15:
+   16:		N      0032	  ShowDigitsCounter   EQU 032H
+   17:		N      0033	  FlashInInterAdders  EQU 033H
+   18:		N      0034	  FastTimerLowAdders  EQU 034H
+   19:		N      0035	  FastTimerHighAdders EQU 035H
+   20:
+   21:
+   22:
+   23:		N      0000	  ORG 00h
+   24:	  0000	02 01 0B	  JMP Start
+   25:
+   26:		N      0003	  ORG 03h
+   27:	  0003	02 00 1E	  JMP InterProc_INT0
+   28:		N      000B	  ORG 0Bh
+   29:	  000B	02 00 7B	  JMP InterProc_TF0
+   30:		N      001B	  ORG 1Bh
+   31:	  001B	02 01 00	  JMP InterProc_TF1
+   32:
+   33:	  001E			  InterProc_INT0:
+   34:				;   MOV P2, #11111111b
+   35:				;   ORL P3, #11111110b
+   36:	  001E	C3		    CLR C ;устанавливаем С в 0
+   37:	  001F	20 A0 15	   JB P2.0, SetNotHours 	;переход если бит установлен
+   38:	  0022	20 B7 01	    JB P3.7, NotIncHours	;переход если бит установлен
+   39:	  0025	08		     INC Hours				;увеличиваем часы
+   40:
+   41:	  0026			    NotIncHours:
+   42:	  0026	20 B6 01	    JB P3.6, NotDecHours	;переход если бит установлен
+   43:	  0029	18		     DEC Hours				;уменьшаем часы
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 2
+
+
+
+ Line  I  Addr  Code            Source
+
+   44:
+   45:	  002A			    NotDecHours:
+   46:	  002A	B8 64 02	    CJNE Hours, #100, ContinueHoursCheck ;если Hours != 100, переходим к ContinueHoursCheck
+   47:	  002D	78 00		     MOV Hours, #0 ;загружаем 0 в часы
+   48:
+   49:	  002F			    ContinueHoursCheck:
+   50:	  002F	B8 FF 3E	    CJNE Hours, #-1, EndOfTimeSet ;если Hours != -1, переходим к EndOfTimeSet
+   51:	  0032	78 63		     MOV Hours, #99 ;записываем в Hours 99
+   52:	  0034	02 00 70	    JMP EndOfTimeSet ;переходим к EndOfTimeSet
+   53:
+   54:	  0037			   SetNotHours:
+   55:	  0037	20 A1 1B	   JB P2.1, SetNotMinutes	;переход, если бит не установлен
+   56:	  003A	20 B7 01	    JB P3.7, NotIncMinutes	;переход, если бит не установлен
+   57:	  003D	09		     INC Minutes ;увеличиваем минуты
+   58:
+   59:	  003E			    NotIncMinutes:
+   60:	  003E	20 B6 01	    JB P3.6, NotDecMinutes ;переход, если бит не установлен
+   61:	  0041	19		     DEC Minutes	;уменьшаем минуты
+   62:
+   63:	  0042			    NotDecMinutes:
+   64:	  0042	B9 3C 05	    CJNE Minutes, #60, ContinueMinutesCheck ;если минуты != 60, проверяем дальше минуты
+   65:	  0045	79 00		     MOV Minutes, #0 	;записываем 0 в минуты
+   66:	  0047	08		     INC Hours  		;уменьшаем часы
+   67:	  0048	80 E0		     JMP NotDecHours   	;переход к NotDecHours
+   68:
+   69:	  004A			    ContinueMinutesCheck:
+   70:	  004A	B9 FF 23	    CJNE Minutes, #-1, EndOfTimeSet	;если минуты != -1, переходим к EndOfTimeSet
+   71:	  004D	18		     DEC Hours 				;уменьшаем часы
+   72:	  004E	79 3B		     MOV Minutes, #59 		;в минуты записываем 59
+   73:	  0050	80 D8		     JMP NotDecHours		;переходим к NotDecHours
+   74:	  0052	02 00 70	    JMP EndOfTimeSet 		;переходим к EndOfTimeSet
+   75:
+   76:	  0055			   SetNotMinutes:
+   77:	  0055	20 A2 18	   JB P2.2, EndOfTimeSet	;переход, если бит не установлен
+   78:	  0058	20 B7 01	    JB P3.7, NotIncSeconds	;переход, если бит не установлен
+   79:	  005B	0A		     INC Seconds 	;увеличиваем секунды
+   80:
+   81:	  005C			    NotIncSeconds:
+   82:	  005C	20 B6 01	    JB P3.6, NotDecSeconds	;переход, если бит не установлен
+   83:	  005F	1A		     DEC Seconds			; умньшаем секунды
+   84:
+   85:	  0060			    NotDecSeconds:
+   86:	  0060	BA 3C 05	    CJNE Seconds, #60, ContinueSecondsCheck ;если секунды != 60, проверяем дальше
+   87:	  0063	7A 00		     MOV Seconds, #0 	;записываем 0 в секунды
+   88:	  0065	09		     INC Minutes  		;увеличиваем минуты
+   89:	  0066	80 DA		     JMP NotDecMinutes  ;переход к NotDecMinutes
+   90:
+   91:	  0068			    ContinueSecondsCheck:
+   92:	  0068	BA FF 05	    CJNE Seconds, #-1, EndOfTimeSet ;если секунды != -1, переходим к EndOfTimeSet
+   93:	  006B	19		     DEC Minutes 		;уменьшаем минуты
+   94:	  006C	7A 3B		     MOV Seconds, #59 	;уменьшаем секунды
+   95:	  006E	80 D2		     JMP NotDecMinutes	;переход к NotDecMinutes
+   96:
+   97:	  0070			   EndOfTimeSet:
+   98:	  0070	75 33 0A	   MOV  FlashInInterAdders, #10
+   99:	  0073	D2 03		   SETB IsInterEX0
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 3
+
+
+
+ Line  I  Addr  Code            Source
+
+  100:	  0075	02 01 56	   JMP  IfIntEX0
+  101:	  0078			   IfIntEX0_RET:
+  102:	  0078	C2 03		   CLR  IsInterEX0
+  103:	  007A	32		  RETI
+  104:
+  105:	  007B			  InterProc_TF0:
+  106:	  007B	C2 8D		   CLR  TF0
+  107:	  007D	75 8C B1	   MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+  108:	  0080	75 8A DF	   MOV  TL0,  #low(0B1DFh)
+  109:	  0083	0E		   INC  TickCounterT0
+  110:	  0084	BE 19 78	   CJNE TickCounterT0, #25, NotSufficientTicks  ; 0.5 sec
+  111:	  0087	7E 00		    MOV TickCounterT0, #0
+  112:	  0089	B2 03		    CPL HalfSecondFlag
+  113:	  008B	0D		    INC HalfSecondCounter
+  114:
+  115:	  008C			    Set_T1_Mode:
+  116:	  008C	30 06 13	    JNB IsSignal_Pause, DoNot_Pause
+  117:	  008F	BD 00 07	     CJNE HalfSecondCounter, #0, EnfOfSet_Pause
+  118:	  0092	C2 8E		      CLR TR1
+  119:	  0094	C2 B0		      CLR P3.0
+  120:	  0096	02 00 EA	      JMP  EndOfSignalControl
+  121:	  0099			     EnfOfSet_Pause:
+  122:	  0099	BD 01 4E	     CJNE HalfSecondCounter, #1, EndOfSignalControl
+  123:	  009C	7D 00		      MOV HalfSecondCounter, #0
+  124:	  009E	C2 06		      CLR IsSignal_Pause         ; One of other flags must be true
+  125:	  00A0	80 EA		      JMP Set_T1_Mode
+  126:	  00A2			    DoNot_Pause:
+  127:	  00A2	30 04 21	    JNB IsSignal_1000, DoNot_1000
+  128:	  00A5	BD 00 11	     CJNE HalfSecondCounter, #0, EnfOfSet_1000
+  129:	  00A8	75 35 FE	      MOV  FastTimerHighAdders, #high(0FE0Bh) ; 2000 Hz
+  130:	  00AB	75 34 0B	      MOV  FastTimerLowAdders,  #low(0FE0Bh)
+  131:	  00AE	85 35 8D	      MOV  TH1,  FastTimerHighAdders
+  132:	  00B1	85 34 8B	      MOV  TL1,  FastTimerLowAdders
+  133:	  00B4	D2 8E		      SETB TR1
+  134:	  00B6	02 00 EA	      JMP  EndOfSignalControl
+  135:	  00B9			     EnfOfSet_1000:
+  136:	  00B9	BD 02 2E	     CJNE HalfSecondCounter, #2, EndOfSignalControl
+  137:	  00BC	7D 00		      MOV HalfSecondCounter, #0
+  138:	  00BE	C2 04		      CLR  IsSignal_1000
+  139:	  00C0	D2 06		      SETB IsSignal_Pause
+  140:	  00C2	D2 05		      SETB IsSignal_500
+  141:	  00C4	80 C6		      JMP Set_T1_Mode
+  142:	  00C6			    DoNot_1000:
+  143:	  00C6	30 05 21	    JNB IsSignal_500, DoNot_500
+  144:	  00C9	BD 00 11	     CJNE HalfSecondCounter, #0, EnfOfSet_500
+  145:	  00CC	75 35 FF	      MOV  FastTimerHighAdders, #high(0FF05h) ; 1000 Hz
+  146:	  00CF	75 34 05	      MOV  FastTimerLowAdders,  #low(0FF05h)
+  147:	  00D2	85 35 8D	      MOV  TH1,  FastTimerHighAdders
+  148:	  00D5	85 34 8B	      MOV  TL1,  FastTimerLowAdders
+  149:	  00D8	D2 8E		      SETB TR1
+  150:	  00DA	02 00 EA	      JMP  EndOfSignalControl
+  151:	  00DD			     EnfOfSet_500:
+  152:	  00DD	BD 01 0A	     CJNE HalfSecondCounter, #1, EndOfSignalControl
+  153:	  00E0	7D 00		      MOV HalfSecondCounter, #0
+  154:	  00E2	C2 05		      CLR  IsSignal_500
+  155:	  00E4	D2 06		      SETB IsSignal_Pause
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
+
+
+
+ Line  I  Addr  Code            Source
+
+  156:	  00E6	D2 04		      SETB IsSignal_1000
+  157:	  00E8	80 A2		      JMP Set_T1_Mode
+  158:	  00EA			    DoNot_500:
+  159:	  00EA			    EndOfSignalControl:
+  160:
+  161:	  00EA	30 03 12	    JNB HalfSecondFlag, NotSufficientTicks
+  162:	  00ED	0A		    INC  Seconds
+  163:	  00EE	BA 3C 03	    CJNE Seconds, #60, NotSufficientSeconds
+  164:	  00F1	7A 00		     MOV  Seconds, #0
+  165:	  00F3	09		     INC  Minutes
+  166:	  00F4			    NotSufficientSeconds:
+  167:	  00F4	B9 3C 03	    CJNE Minutes, #60, NotSufficientMinutes
+  168:	  00F7	79 00		     MOV  Minutes, #0
+  169:	  00F9	08		     INC  Hours
+  170:	  00FA			    NotSufficientMinutes:
+  171:	  00FA	B8 64 02	    CJNE Hours, #100, NotSufficientHours
+  172:	  00FD	78 00		     MOV  Hours, #0
+  173:	  00FF			    NotSufficientHours:
+  174:	  00FF			   NotSufficientTicks:
+  175:	  00FF	32		  RETI
+  176:
+  177:	  0100			  InterProc_TF1:
+  178:	  0100	C2 8F		   CLR  TF1
+  179:	  0102	B2 B0		   CPL  P3.0
+  180:	  0104	85 35 8D	   MOV  TH1,  FastTimerHighAdders
+  181:	  0107	85 34 8B	   MOV  TL1,  FastTimerLowAdders
+  182:	  010A	32		  RETI
+  183:
+  184:	  010B			Start:
+  185:
+  186:	  010B	75 A8 00	  MOV  IE, #0
+  187:
+  188:	  010E	78 00		  MOV  Hours,             #0
+  189:	  0110	79 00		  MOV  Minutes,           #0
+  190:	  0112	7A 00		  MOV  Seconds,           #0
+  191:	  0114	7E 00		  MOV  TickCounterT0,     #0
+  192:	  0116	7D 00		  MOV  HalfSecondCounter, #0
+  193:	  0118	75 81 70	  MOV  SP, #70h
+  194:	  011B	75 80 00	  MOV  P0, #00000000b
+  195:	  011E	75 90 00	  MOV  P1, #00000000b
+  196:	  0121	75 A0 FF	  MOV  P2, #11111111b
+  197:	  0124	75 B0 FE	  MOV  P3, #11111110b
+  198:
+  199:
+  200:
+  201:	  0127	D2 00		  SETB CanShowHours
+  202:	  0129	D2 01		  SETB CanShowMinutes
+  203:	  012B	D2 02		  SETB CanShowSeconds
+  204:	  012D	D2 03		  SETB HalfSecondFlag
+  205:	  012F	C2 03		  CLR  IsInterEX0
+  206:	  0131	75 32 00	  MOV  ShowDigitsCounter, #0
+  207:
+  208:
+  209:
+  210:	  0134	C2 8C		  CLR  TR0
+  211:	  0136	C2 8E		  CLR  TR1
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
+
+
+
+ Line  I  Addr  Code            Source
+
+  212:	  0138	75 8C B1	  MOV  TH0,  #high(0B1DFh)
+  213:	  013B	75 8A DF	  MOV  TL0,  #low(0B1DFh)
+  214:	  013E	75 89 11	  MOV  TMOD, #00010001b
+  215:
+  216:	  0141	D2 A9		  SETB ET0
+  217:	  0143	D2 AB		  SETB ET1
+  218:	  0145	D2 AF		  SETB EA
+  219:
+  220:
+  221:	  0147			MainLoop:
+  222:
+  223:	  0147	12 02 F4	  CALL ShowTime
+  224:	  014A	75 A0 FF	  MOV  P2, #11111111b
+  225:
+  226:	  014D	30 A3 3F	  JNB P2.3, TimeCountActivate
+  227:	  0150	C2 8C		   CLR  TR0     ; !!!
+  228:	  0152	C2 8E		   CLR  TR1     ; !!!
+  229:	  0154	D2 A8		   SETB EX0     ; !!!
+  230:	  0156			   IfIntEX0:
+  231:	  0156	05 32		   INC  ShowDigitsCounter
+  232:	  0158	E5 32		   MOV  A, ShowDigitsCounter
+  233:	  015A	B4 0F 27	   CJNE A, #15, DoNotFlash
+  234:	  015D	75 32 00	    MOV ShowDigitsCounter, #0
+  235:	  0160	20 A0 09	    JB P2.0, FlashNotHours
+  236:	  0163	D2 01		     SETB CanShowMinutes
+  237:	  0165	D2 02		     SETB CanShowSeconds
+  238:	  0167	B2 00		     CPL  CanShowHours
+  239:	  0169	02 01 84	     JMP  DoNotFlash
+  240:	  016C			    FlashNotHours:
+  241:	  016C	20 A1 09	    JB P2.1, FlashNotMinutes
+  242:	  016F	D2 00		     SETB CanShowHours
+  243:	  0171	D2 02		     SETB CanShowSeconds
+  244:	  0173	B2 01		     CPL  CanShowMinutes
+  245:	  0175	02 01 84	     JMP  DoNotFlash
+  246:	  0178			    FlashNotMinutes:
+  247:	  0178	20 A2 09	    JB P2.2, DoNotFlash
+  248:	  017B	D2 00		     SETB CanShowHours
+  249:	  017D	D2 01		     SETB CanShowMinutes
+  250:	  017F	B2 02		     CPL  CanShowSeconds
+  251:	  0181	02 01 84	     JMP  DoNotFlash
+  252:	  0184			    DoNotFlash:
+  253:	  0184	30 03 36	   JNB  IsInterEX0, EndOfFlashing
+  254:	  0187	12 02 F4	   CALL ShowTime
+  255:	  018A	D5 33 C9	   djnz FlashInInterAdders, IfIntEX0
+  256:	  018D	01 78		   JMP  IfIntEX0_RET
+  257:	  018F			  TimeCountActivate:
+  258:	  018F	20 8C 2B	   JB TR0, TimeCountIsActive
+  259:	  0192	D2 00		    SETB CanShowHours
+  260:	  0194	D2 01		    SETB CanShowMinutes
+  261:	  0196	D2 02		    SETB CanShowSeconds
+  262:	  0198	D2 03		    SETB HalfSecondFlag
+  263:	  019A	75 B0 FE	    MOV  P3, #11111110b
+  264:	  019D	7D 00		    MOV  HalfSecondCounter, #0
+  265:	  019F	D2 04		    SETB IsSignal_1000
+  266:	  01A1	C2 05		    CLR  IsSignal_500
+  267:	  01A3	C2 06		    CLR  IsSignal_Pause
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 6
+
+
+
+ Line  I  Addr  Code            Source
+
+  268:	  01A5	75 8C B1	    MOV  TH0,  #high(0B1DFh) ; 50 Hz
+  269:	  01A8	75 8A DF	    MOV  TL0,  #low(0B1DFh)
+  270:	  01AB	75 35 FE	    MOV  FastTimerHighAdders, #high(0FE0Bh) ; 2000 Hz
+  271:	  01AE	75 34 0B	    MOV  FastTimerLowAdders,  #low(0FE0Bh)
+  272:	  01B1	85 35 8D	    MOV  TH1,  FastTimerHighAdders
+  273:	  01B4	85 34 8B	    MOV  TL1,  FastTimerLowAdders
+  274:	  01B7	C2 A8		    CLR  EX0     ; !!!
+  275:	  01B9	D2 8C		    SETB TR0     ; !!!
+  276:	  01BB	D2 8E		    SETB TR1     ; !!!
+  277:	  01BD			  TimeCountIsActive:
+  278:				  ;
+  279:	  01BD			  EndOfFlashing:
+  280:
+  281:	  01BD	80 88		JMP MainLoop
+  282:				;============================================
+  283:
+  284:	  01BF			  IndiShowDigit: ; A - DigitVal, B - Pos
+  285:	  01BF	75 80 00	    mov P0, #0
+  286:	  01C2	75 90 00	    mov P1, #0
+  287:
+  288:	  01C5	C5 F0		    XCH  A, B
+  289:	  01C7	B4 01 05	    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+  290:	  01CA	D2 80		    SETB P0.0
+  291:	  01CC	02 02 0A	    JMP EndOfSetDigit
+  292:	  01CF			    PosNot_1:
+  293:	  01CF	B4 02 05	    CJNE A, #2, PosNot_2
+  294:	  01D2	D2 81		    SETB P0.1
+  295:	  01D4	02 02 0A	    JMP EndOfSetDigit
+  296:	  01D7			    PosNot_2:
+  297:	  01D7	B4 03 05	    CJNE A, #3, PosNot_3
+  298:	  01DA	D2 82		    SETB P0.2
+  299:	  01DC	02 02 0A	    JMP EndOfSetDigit
+  300:	  01DF			    PosNot_3:
+  301:	  01DF	B4 04 05	    CJNE A, #4, PosNot_4
+  302:	  01E2	D2 83		    SETB P0.3
+  303:	  01E4	02 02 0A	    JMP EndOfSetDigit
+  304:	  01E7			    PosNot_4:
+  305:	  01E7	B4 05 05	    CJNE A, #5, PosNot_5
+  306:	  01EA	D2 84		    SETB P0.4
+  307:	  01EC	02 02 0A	    JMP EndOfSetDigit
+  308:	  01EF			    PosNot_5:
+  309:	  01EF	B4 06 05	    CJNE A, #6, PosNot_6
+  310:	  01F2	D2 85		    SETB P0.5
+  311:	  01F4	02 02 0A	    JMP EndOfSetDigit
+  312:	  01F7			    PosNot_6:
+  313:	  01F7	B4 07 05	    CJNE A, #7, PosNot_7
+  314:	  01FA	D2 86		    SETB P0.6
+  315:	  01FC	02 02 0A	    JMP EndOfSetDigit
+  316:	  01FF			    PosNot_7:
+  317:	  01FF	B4 08 05	    CJNE A, #8, PosNot_8
+  318:	  0202	D2 87		    SETB P0.7
+  319:	  0204	02 02 0A	    JMP EndOfSetDigit
+  320:	  0207			    PosNot_8:
+  321:	  0207	02 02 AE	    JMP EndOfShowDigit
+  322:	  020A			    EndOfSetDigit:
+  323:
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 7
+
+
+
+ Line  I  Addr  Code            Source
+
+  324:	  020A	C5 F0		    XCH A, B
+  325:	  020C	B4 00 0F	    CJNE A, #0, DigitNot_0
+  326:	  020F	D2 90		    SETB P1.0
+  327:	  0211	D2 91		    SETB P1.1
+  328:	  0213	D2 92		    SETB P1.2
+  329:	  0215	D2 93		    SETB P1.3
+  330:	  0217	D2 94		    SETB P1.4
+  331:	  0219	D2 95		    SETB P1.5
+  332:	  021B	02 02 AE	    JMP EndOfShowDigit
+  333:	  021E			    DigitNot_0:
+  334:	  021E	B4 01 07	    CJNE A, #1, DigitNot_1
+  335:	  0221	D2 91		    SETB P1.1
+  336:	  0223	D2 92		    SETB P1.2
+  337:	  0225	02 02 AE	    JMP EndOfShowDigit
+  338:	  0228			    DigitNot_1:
+  339:	  0228	B4 02 0D	    CJNE A, #2, DigitNot_2
+  340:	  022B	D2 90		    SETB P1.0
+  341:	  022D	D2 91		    SETB P1.1
+  342:	  022F	D2 96		    SETB P1.6
+  343:	  0231	D2 94		    SETB P1.4
+  344:	  0233	D2 93		    SETB P1.3
+  345:	  0235	02 02 AE	    JMP EndOfShowDigit
+  346:	  0238			    DigitNot_2:
+  347:	  0238	B4 03 0D	    CJNE A, #3, DigitNot_3
+  348:	  023B	D2 90		    SETB P1.0
+  349:	  023D	D2 91		    SETB P1.1
+  350:	  023F	D2 96		    SETB P1.6
+  351:	  0241	D2 92		    SETB P1.2
+  352:	  0243	D2 93		    SETB P1.3
+  353:	  0245	02 02 AE	    JMP EndOfShowDigit
+  354:	  0248			    DigitNot_3:
+  355:	  0248	B4 04 0B	    CJNE A, #4, DigitNot_4
+  356:	  024B	D2 95		    SETB P1.5
+  357:	  024D	D2 96		    SETB P1.6
+  358:	  024F	D2 91		    SETB P1.1
+  359:	  0251	D2 92		    SETB P1.2
+  360:	  0253	02 02 AE	    JMP EndOfShowDigit
+  361:	  0256			    DigitNot_4:
+  362:	  0256	B4 05 0D	    CJNE A, #5, DigitNot_5
+  363:	  0259	D2 90		    SETB P1.0
+  364:	  025B	D2 95		    SETB P1.5
+  365:	  025D	D2 96		    SETB P1.6
+  366:	  025F	D2 92		    SETB P1.2
+  367:	  0261	D2 93		    SETB P1.3
+  368:	  0263	02 02 AE	    JMP EndOfShowDigit
+  369:	  0266			    DigitNot_5:
+  370:	  0266	B4 06 0F	    CJNE A, #6, DigitNot_6
+  371:	  0269	D2 90		    SETB P1.0
+  372:	  026B	D2 95		    SETB P1.5
+  373:	  026D	D2 94		    SETB P1.4
+  374:	  026F	D2 96		    SETB P1.6
+  375:	  0271	D2 92		    SETB P1.2
+  376:	  0273	D2 93		    SETB P1.3
+  377:	  0275	02 02 AE	    JMP EndOfShowDigit
+  378:	  0278			    DigitNot_6:
+  379:	  0278	B4 07 09	    CJNE A, #7, DigitNot_7
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 8
+
+
+
+ Line  I  Addr  Code            Source
+
+  380:	  027B	D2 90		    SETB P1.0
+  381:	  027D	D2 91		    SETB P1.1
+  382:	  027F	D2 92		    SETB P1.2
+  383:	  0281	02 02 AE	    JMP EndOfShowDigit
+  384:	  0284			    DigitNot_7:
+  385:	  0284	B4 08 13	    CJNE A, #8, DigitNot_8
+  386:	  0287	D2 90		    SETB P1.0
+  387:	  0289	D2 91		    SETB P1.1
+  388:	  028B	D2 92		    SETB P1.2
+  389:	  028D	D2 93		    SETB P1.3
+  390:	  028F	D2 94		    SETB P1.4
+  391:	  0291	D2 95		    SETB P1.5
+  392:	  0293	D2 96		    SETB P1.6
+  393:	  0295	D2 97		    SETB P1.7
+  394:	  0297	02 02 AE	    JMP EndOfShowDigit
+  395:	  029A			    DigitNot_8:
+  396:	  029A	B4 09 0F	    CJNE A, #9, DigitNot_9
+  397:	  029D	D2 90		    SETB P1.0
+  398:	  029F	D2 91		    SETB P1.1
+  399:	  02A1	D2 95		    SETB P1.5
+  400:	  02A3	D2 96		    SETB P1.6
+  401:	  02A5	D2 92		    SETB P1.2
+  402:	  02A7	D2 93		    SETB P1.3
+  403:	  02A9	02 02 AE	    JMP EndOfShowDigit
+  404:	  02AC			    DigitNot_9:
+  405:	  02AC	D2 96		    SETB P1.6
+  406:
+  407:	  02AE			    EndOfShowDigit:
+  408:	  02AE	75 30 04	    MOV 30h, #4
+  409:	  02B1			    WaitShowDigit:
+  410:	  02B1	75 31 EB	    MOV 31h, #235
+  411:	  02B4			    WaitShowDigit1:
+  412:	  02B4	D5 31 FD	    DJNZ 31h, WaitShowDigit1
+  413:	  02B7	D5 30 F7	    DJNZ 30h, WaitShowDigit
+  414:
+  415:	  02BA	22		  RET ; End of IndiShowDigit
+  416:				;--------------------------------------------
+  417:
+  418:	  02BB			  ShowHours:
+  419:	  02BB	E8		    MOV A, Hours
+  420:	  02BC	75 F0 0A	    MOV B, #10
+  421:	  02BF	84		    DIV AB
+  422:
+  423:	  02C0	AF F0		    MOV R7, B
+  424:	  02C2	75 F0 01	    MOV B, #1
+  425:	  02C5	31 BF		    CALL IndiShowDigit
+  426:
+  427:	  02C7	CF		    XCH A, R7
+  428:	  02C8	75 F0 02	    MOV B, #2
+  429:	  02CB	31 BF		    CALL IndiShowDigit
+  430:	  02CD	22		  RET  ; End of ShowHours
+  431:				;--------------------------------------------
+  432:
+  433:	  02CE			  ShowMinutes:
+  434:	  02CE	E9		    MOV A, Minutes
+  435:	  02CF	75 F0 0A	    MOV B, #10
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 9
+
+
+
+ Line  I  Addr  Code            Source
+
+  436:	  02D2	84		    DIV AB
+  437:
+  438:	  02D3	AF F0		    MOV R7, B
+  439:	  02D5	75 F0 04	    MOV B, #4
+  440:	  02D8	31 BF		    CALL IndiShowDigit
+  441:
+  442:	  02DA	CF		    XCH A, R7
+  443:	  02DB	75 F0 05	    MOV B, #5
+  444:	  02DE	31 BF		    CALL IndiShowDigit
+  445:	  02E0	22		  RET  ; End of ShowMinutes
+  446:				;--------------------------------------------
+  447:
+  448:	  02E1			  ShowSeconds:
+  449:	  02E1	EA		    MOV A, Seconds
+  450:	  02E2	75 F0 0A	    MOV B, #10
+  451:	  02E5	84		    DIV AB
+  452:
+  453:	  02E6	AF F0		    MOV R7, B
+  454:	  02E8	75 F0 07	    MOV B, #7
+  455:	  02EB	31 BF		    CALL IndiShowDigit
+  456:
+  457:	  02ED	CF		    XCH A, R7
+  458:	  02EE	75 F0 08	    MOV B, #8
+  459:	  02F1	31 BF		    CALL IndiShowDigit
+  460:	  02F3	22		  RET  ; End of ShowSeconds
+  461:				;--------------------------------------------
+  462:
+  463:	  02F4			  ShowTime:
+  464:	  02F4	75 80 00	    mov P0, #0
+  465:	  02F7	75 90 00	    mov P1, #0
+  466:	  02FA	30 00 02	    JNB CanShowHours, DontShowHours
+  467:	  02FD	51 BB		    CALL ShowHours
+  468:	  02FF			    DontShowHours:
+  469:	  02FF	30 01 02	    JNB CanShowMinutes, DontShowMinutes
+  470:	  0302	51 CE		    CALL ShowMinutes
+  471:	  0304			    DontShowMinutes:
+  472:	  0304	30 02 02	    JNB CanShowSeconds, DontShowSeconds
+  473:	  0307	51 E1		    CALL ShowSeconds
+  474:	  0309			    DontShowSeconds:
+  475:
+  476:	  0309	74 0A		    MOV  A, #10
+  477:	  030B	75 F0 03	    MOV  B, #3
+  478:	  030E	31 BF		    CALL IndiShowDigit
+  479:	  0310	75 F0 06	    MOV  B, #6
+  480:	  0313	31 BF		    CALL IndiShowDigit
+  481:	  0315	22		  RET  ; End of ShowTime
+  482:				;--------------------------------------------
+  483:				;============================================
+  484:
+  485:				END
+  486:
+  487:
+  488:
+  489:
+  490:
+  491:
+
+ASEM-51 V1.3                                        Copyright (c) 2002 by W.W. Heinz                                         PAGE 10
+
+
+
+ Line  I  Addr  Code            Source
+
+  492:
+  493:
+  494:
+
+
+
+
+
+                     register banks used:  ---
+
+                     no errors
+
+
+
+
+ASEM-51 V1.3                                        Copyright (c) 2002 by W.W. Heinz                                         PAGE 11
+
+
+
+
+
+	       L I S T   O F   S Y M B O L S
+	       =============================
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+??ASEM_51			  NUMBER    8051
+??VERSION			  NUMBER    0130
+AC				  BIT	      D6
+ACC				  DATA	      E0
+B				  DATA	      F0
+CANSHOWHOURS			  NUMBER    0000	   7
+CANSHOWMINUTES			  NUMBER    0001	   8
+CANSHOWSECONDS			  NUMBER    0002	   9
+CONTINUEHOURSCHECK		  CODE	    002F	  49
+CONTINUEMINUTESCHECK		  CODE	    004A	  69
+CONTINUESECONDSCHECK		  CODE	    0068	  91
+CY				  BIT	      D7
+DIGITNOT_0			  CODE	    021E	 333
+DIGITNOT_1			  CODE	    0228	 338
+DIGITNOT_2			  CODE	    0238	 346
+DIGITNOT_3			  CODE	    0248	 354
+DIGITNOT_4			  CODE	    0256	 361
+DIGITNOT_5			  CODE	    0266	 369
+DIGITNOT_6			  CODE	    0278	 378
+DIGITNOT_7			  CODE	    0284	 384
+DIGITNOT_8			  CODE	    029A	 395
+DIGITNOT_9			  CODE	    02AC	 404
+DONOTFLASH			  CODE	    0184	 252
+DONOT_1000			  CODE	    00C6	 142
+DONOT_500			  CODE	    00EA	 158
+DONOT_PAUSE			  CODE	    00A2	 126
+DONTSHOWHOURS			  CODE	    02FF	 468
+DONTSHOWMINUTES			  CODE	    0304	 471
+DONTSHOWSECONDS			  CODE	    0309	 474
+DPH				  DATA	      83
+DPL				  DATA	      82
+EA				  BIT	      AF
+ENDOFFLASHING			  CODE	    01BD	 279
+ENDOFSETDIGIT			  CODE	    020A	 322
+ENDOFSHOWDIGIT			  CODE	    02AE	 407
+ENDOFSIGNALCONTROL		  CODE	    00EA	 159
+ENDOFTIMESET			  CODE	    0070	  97
+ENFOFSET_1000			  CODE	    00B9	 135
+ENFOFSET_500			  CODE	    00DD	 151
+ENFOFSET_PAUSE			  CODE	    0099	 121
+ES				  BIT	      AC
+ET0				  BIT	      A9
+ET1				  BIT	      AB
+EX0				  BIT	      A8
+EX1				  BIT	      AA
+EXTI0				  CODE	    0003
+EXTI1				  CODE	    0013
+F0				  BIT	      D5
+FASTTIMERHIGHADDERS		  NUMBER    0035	  19
+FASTTIMERLOWADDERS		  NUMBER    0034	  18
+
+ASEM-51 V1.3                                        Copyright (c) 2002 by W.W. Heinz                                         PAGE 12
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+FLASHININTERADDERS		  NUMBER    0033	  17
+FLASHNOTHOURS			  CODE	    016C	 240
+FLASHNOTMINUTES			  CODE	    0178	 246
+HALFSECONDCOUNTER		  REGISTER    R5	   5
+HALFSECONDFLAG			  NUMBER    0003	  11
+HOURS				  REGISTER    R0	   1
+IE				  DATA	      A8
+IE0				  BIT	      89
+IE1				  BIT	      8B
+IFINTEX0			  CODE	    0156	 230
+IFINTEX0_RET			  CODE	    0078	 101
+INDISHOWDIGIT			  CODE	    01BF	 284
+INT0				  BIT	      B2
+INT1				  BIT	      B3
+INTERPROC_INT0			  CODE	    001E	  33
+INTERPROC_TF0			  CODE	    007B	 105
+INTERPROC_TF1			  CODE	    0100	 177
+IP				  DATA	      B8
+ISINTEREX0			  NUMBER    0003	  10
+ISSIGNAL_1000			  NUMBER    0004	  12
+ISSIGNAL_500			  NUMBER    0005	  13
+ISSIGNAL_PAUSE			  NUMBER    0006	  14
+IT0				  BIT	      88
+IT1				  BIT	      8A
+MAINLOOP			  CODE	    0147	 221
+MINUTES				  REGISTER    R1	   2
+NOTDECHOURS			  CODE	    002A	  45
+NOTDECMINUTES			  CODE	    0042	  63
+NOTDECSECONDS			  CODE	    0060	  85
+NOTINCHOURS			  CODE	    0026	  41
+NOTINCMINUTES			  CODE	    003E	  59
+NOTINCSECONDS			  CODE	    005C	  81
+NOTSUFFICIENTHOURS		  CODE	    00FF	 173
+NOTSUFFICIENTMINUTES		  CODE	    00FA	 170
+NOTSUFFICIENTSECONDS		  CODE	    00F4	 166
+NOTSUFFICIENTTICKS		  CODE	    00FF	 174
+OV				  BIT	      D2
+P				  BIT	      D0
+P0				  DATA	      80
+P1				  DATA	      90
+P2				  DATA	      A0
+P3				  DATA	      B0
+PCON				  DATA	      87
+POSNOT_1			  CODE	    01CF	 292
+POSNOT_2			  CODE	    01D7	 296
+POSNOT_3			  CODE	    01DF	 300
+POSNOT_4			  CODE	    01E7	 304
+POSNOT_5			  CODE	    01EF	 308
+POSNOT_6			  CODE	    01F7	 312
+POSNOT_7			  CODE	    01FF	 316
+POSNOT_8			  CODE	    0207	 320
+PS				  BIT	      BC
+PSW				  DATA	      D0
+PT0				  BIT	      B9
+PT1				  BIT	      BB
+PX0				  BIT	      B8
+
+ASEM-51 V1.3                                        Copyright (c) 2002 by W.W. Heinz                                         PAGE 13
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+PX1				  BIT	      BA
+RB8				  BIT	      9A
+RD				  BIT	      B7
+REN				  BIT	      9C
+RESET				  CODE	    0000
+RI				  BIT	      98
+RS0				  BIT	      D3
+RS1				  BIT	      D4
+RXD				  BIT	      B0
+SBUF				  DATA	      99
+SCON				  DATA	      98
+SECONDS				  REGISTER    R2	   3
+SETNOTHOURS			  CODE	    0037	  54
+SETNOTMINUTES			  CODE	    0055	  76
+SET_T1_MODE			  CODE	    008C	 115
+SHOWDIGITSCOUNTER		  NUMBER    0032	  16
+SHOWHOURS			  CODE	    02BB	 418
+SHOWMINUTES			  CODE	    02CE	 433
+SHOWSECONDS			  CODE	    02E1	 448
+SHOWTIME			  CODE	    02F4	 463
+SINT				  CODE	    0023
+SM0				  BIT	      9F
+SM1				  BIT	      9E
+SM2				  BIT	      9D
+SP				  DATA	      81
+START				  CODE	    010B	 184
+T0				  BIT	      B4
+T1				  BIT	      B5
+TB8				  BIT	      9B
+TCON				  DATA	      88
+TF0				  BIT	      8D
+TF1				  BIT	      8F
+TH0				  DATA	      8C
+TH1				  DATA	      8D
+TI				  BIT	      99
+TICKCOUNTERT0			  REGISTER    R6	   4
+TIMECOUNTACTIVATE		  CODE	    018F	 257
+TIMECOUNTISACTIVE		  CODE	    01BD	 277
+TIMER0				  CODE	    000B
+TIMER1				  CODE	    001B
+TL0				  DATA	      8A
+TL1				  DATA	      8B
+TMOD				  DATA	      89
+TR0				  BIT	      8C
+TR1				  BIT	      8E
+TXD				  BIT	      B1
+WAITSHOWDIGIT			  CODE	    02B1	 409
+WAITSHOWDIGIT1			  CODE	    02B4	 411
+WR				  BIT	      B6
