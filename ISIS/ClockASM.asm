@@ -31,68 +31,66 @@
   JMP InterProc_TF1
 
   InterProc_INT0:
-;   MOV P2, #11111111b
-;   ORL P3, #11111110b
-    CLR C ;устанавливаем С в 0
-   JB P2.0, SetNotHours 	;переход если бит установлен    
-    JB P3.7, NotIncHours	;переход если бит установлен
-     INC Hours				;увеличиваем часы
+    CLR C 
+   JB P2.0, SetNotHours 
+    JB P3.7, NotIncHours
+     INC Hours		
 	 
     NotIncHours:
-    JB P3.6, NotDecHours	;переход если бит установлен
-     DEC Hours				;уменьшаем часы
+    JB P3.6, NotDecHours
+     DEC Hours		
 	 
     NotDecHours:
-    CJNE Hours, #100, ContinueHoursCheck ;если Hours != 100, переходим к ContinueHoursCheck
-     MOV Hours, #0 ;загружаем 0 в часы
+    CJNE Hours, #100, ContinueHoursCheck 
+     MOV Hours, #0 
 	 
     ContinueHoursCheck:
-    CJNE Hours, #-1, EndOfTimeSet ;если Hours != -1, переходим к EndOfTimeSet
-     MOV Hours, #99 ;записываем в Hours 99
-    JMP EndOfTimeSet ;переходим к EndOfTimeSet
+    CJNE Hours, #-1, EndOfTimeSet 
+     MOV Hours, #99 
+    JMP EndOfTimeSet
 	
    SetNotHours:
-   JB P2.1, SetNotMinutes	;переход, если бит не установлен
-    JB P3.7, NotIncMinutes	;переход, если бит не установлен
-     INC Minutes ;увеличиваем минуты
+   JB P2.1, SetNotMinutes	
+    JB P3.7, NotIncMinutes	
+     INC Minutes
 	 
     NotIncMinutes:
-    JB P3.6, NotDecMinutes ;переход, если бит не установлен
-     DEC Minutes	;уменьшаем минуты
+    JB P3.6, NotDecMinutes 
+     DEC Minutes	
 	 
     NotDecMinutes:
-    CJNE Minutes, #60, ContinueMinutesCheck ;если минуты != 60, проверяем дальше минуты
-     MOV Minutes, #0 	;записываем 0 в минуты
-     INC Hours  		;уменьшаем часы
-     JMP NotDecHours   	;переход к NotDecHours
+    CJNE Minutes, #60, ContinueMinutesCheck 
+     MOV Minutes, #0 	
+     INC Hours  	
+     JMP NotDecHours   	
 	 
     ContinueMinutesCheck:
-    CJNE Minutes, #-1, EndOfTimeSet	;если минуты != -1, переходим к EndOfTimeSet
-     DEC Hours 				;уменьшаем часы
-     MOV Minutes, #59 		;в минуты записываем 59
-     JMP NotDecHours		;переходим к NotDecHours
-    JMP EndOfTimeSet 		;переходим к EndOfTimeSet
+    CJNE Minutes, #-1, EndOfTimeSet	
+     DEC Hours 				
+     MOV Minutes, #59 		
+     JMP NotDecHours		
+    JMP EndOfTimeSet 		
 	
    SetNotMinutes:
-   JB P2.2, EndOfTimeSet	;переход, если бит не установлен
-    JB P3.7, NotIncSeconds	;переход, если бит не установлен
-     INC Seconds 	;увеличиваем секунды
+   JB P2.2, EndOfTimeSet	
+    JB P3.7, NotIncSeconds	
+     INC Seconds 	
 	 
     NotIncSeconds:
-    JB P3.6, NotDecSeconds	;переход, если бит не установлен
-     DEC Seconds			; умньшаем секунды
+    JB P3.6, NotDecSeconds
+     DEC Seconds	
 	 
     NotDecSeconds:
-    CJNE Seconds, #60, ContinueSecondsCheck ;если секунды != 60, проверяем дальше
-     MOV Seconds, #0 	;записываем 0 в секунды
-     INC Minutes  		;увеличиваем минуты
-     JMP NotDecMinutes  ;переход к NotDecMinutes
+    CJNE Seconds, #60, ContinueSecondsCheck 
+     MOV Seconds, #0 	
+     INC Minutes  	
+     JMP NotDecMinutes  
 	 
     ContinueSecondsCheck:
-    CJNE Seconds, #-1, EndOfTimeSet ;если секунды != -1, переходим к EndOfTimeSet
-     DEC Minutes 		;уменьшаем минуты
-     MOV Seconds, #59 	;уменьшаем секунды
-     JMP NotDecMinutes	;переход к NotDecMinutes
+    CJNE Seconds, #-1, EndOfTimeSet 
+     DEC Minutes 	
+     MOV Seconds, #59 	
+     JMP NotDecMinutes	
 	 
    EndOfTimeSet:
    MOV  FlashInInterAdders, #10
@@ -104,7 +102,7 @@
   
   InterProc_TF0:
    CLR  TF0
-   MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+   MOV  TH0,  #high(0B1DFh)  ; timer loading
    MOV  TL0,  #low(0B1DFh)
    INC  TickCounterT0
    CJNE TickCounterT0, #25, NotSufficientTicks  ; 0.5 sec
@@ -224,9 +222,9 @@ MainLoop:
   MOV  P2, #11111111b
   
   JNB P2.3, TimeCountActivate 
-   CLR  TR0     ; !!!
-   CLR  TR1     ; !!!
-   SETB EX0     ; !!!
+   CLR  TR0     
+   CLR  TR1     
+   SETB EX0     
    IfIntEX0:
    INC  ShowDigitsCounter
    MOV  A, ShowDigitsCounter 
@@ -286,7 +284,7 @@ JMP MainLoop
     mov P1, #0
     
     XCH  A, B
-    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+    CJNE A, #1, PosNot_1  
     SETB P0.0
     JMP EndOfSetDigit
     PosNot_1:
