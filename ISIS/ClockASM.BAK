@@ -22,7 +22,7 @@
   
   InterProc_TF0:
   CLR  TF0
-  MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+  MOV  TH0,  #high(0B1DFh)  ; Г§Г ГЈГ°ГіГ§ГЄГ  ГІГ Г©Г¬ГҐГ°Г 
   MOV  TL0,  #low(0B1DFh)
   INC  TickCounterT0
   CJNE TickCounterT0, #50, NotSufficientTicks
@@ -108,7 +108,7 @@ JMP MainLoop
     mov P1, #0
     
     XCH  A, B
-    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+    CJNE A, #1, PosNot_1  
     SETB P0.0
     JMP EndOfSetDigit
     PosNot_1:
