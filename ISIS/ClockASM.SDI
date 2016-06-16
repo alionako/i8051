@@ -33,66 +33,66 @@
 001E,,InterProc_INT0,  InterProc_INT0:
 ,,,;   MOV P2, #11111111b
 ,,,;   ORL P3, #11111110b
-001E,C3,,    CLR C ;устанавливаем С в 0
-001F,20 A0 15,,   JB P2.0, SetNotHours         ;переход если бит установлен
-0022,20 B7 01,,    JB P3.7, NotIncHours        ;переход если бит установлен
-0025,08,,     INC Hours                          ;увеличиваем часы
+001E,C3,,    CLR C 
+001F,20 A0 15,,   JB P2.0, SetNotHours         
+0022,20 B7 01,,    JB P3.7, NotIncHours       
+0025,08,,     INC Hours                       
 ,,,
 0026,,NotIncHours,    NotIncHours:
-0026,20 B6 01,,    JB P3.6, NotDecHours        ;переход если бит установлен
-0029,18,,     DEC Hours                          ;уменьшаем часы
+0026,20 B6 01,,    JB P3.6, NotDecHours       
+0029,18,,     DEC Hours                       
 ,,,
 002A,,NotDecHours,    NotDecHours:
-002A,B8 64 02,,    CJNE Hours, #100, ContinueHoursCheck ;если Hours != 100, переходим к ContinueHoursCheck
-002D,78 00,,     MOV Hours, #0 ;загружаем 0 в часы
+002A,B8 64 02,,    CJNE Hours, #100, ContinueHoursCheck
+002D,78 00,,     MOV Hours, #0 
 ,,,
 002F,,ContinueHoursCheck,    ContinueHoursCheck:
-002F,B8 FF 3E,,    CJNE Hours, #-1, EndOfTimeSet ;если Hours != -1, переходим к EndOfTimeSet
-0032,78 63,,     MOV Hours, #99 ;записываем в Hours 99
-0034,02 00 70,,    JMP EndOfTimeSet ;переходим к EndOfTimeSet
+002F,B8 FF 3E,,    CJNE Hours, #-1, EndOfTimeSet 
+0032,78 63,,     MOV Hours, #99 
+0034,02 00 70,,    JMP EndOfTimeSet
 ,,,
 0037,,SetNotHours,   SetNotHours:
-0037,20 A1 1B,,   JB P2.1, SetNotMinutes       ;переход, если бит не установлен
-003A,20 B7 01,,    JB P3.7, NotIncMinutes      ;переход, если бит не установлен
-003D,09,,     INC Minutes ;увеличиваем минуты
+0037,20 A1 1B,,   JB P2.1, SetNotMinutes      
+003A,20 B7 01,,    JB P3.7, NotIncMinutes     
+003D,09,,     INC Minutes 
 ,,,
 003E,,NotIncMinutes,    NotIncMinutes:
-003E,20 B6 01,,    JB P3.6, NotDecMinutes ;переход, если бит не установлен
-0041,19,,     DEC Minutes        ;уменьшаем минуты
+003E,20 B6 01,,    JB P3.6, NotDecMinutes 
+0041,19,,     DEC Minutes 
 ,,,
 0042,,NotDecMinutes,    NotDecMinutes:
-0042,B9 3C 05,,    CJNE Minutes, #60, ContinueMinutesCheck ;если минуты != 60, проверяем дальше минуты
-0045,79 00,,     MOV Minutes, #0    ;записываем 0 в минуты
-0047,08,,     INC Hours                  ;уменьшаем часы
-0048,80 E0,,     JMP NotDecHours    ;переход к NotDecHours
+0042,B9 3C 05,,    CJNE Minutes, #60, ContinueMinutesCheck 
+0045,79 00,,     MOV Minutes, #0    
+0047,08,,     INC Hours           
+0048,80 E0,,     JMP NotDecHours  
 ,,,
 004A,,ContinueMinutesCheck,    ContinueMinutesCheck:
-004A,B9 FF 23,,    CJNE Minutes, #-1, EndOfTimeSet     ;если минуты != -1, переходим к EndOfTimeSet
-004D,18,,     DEC Hours                          ;уменьшаем часы
-004E,79 3B,,     MOV Minutes, #59           ;в минуты записываем 59
-0050,80 D8,,     JMP NotDecHours            ;переходим к NotDecHours
-0052,02 00 70,,    JMP EndOfTimeSet            ;переходим к EndOfTimeSet
+004A,B9 FF 23,,    CJNE Minutes, #-1, EndOfTimeSet    
+004D,18,,     DEC Hours                          
+004E,79 3B,,     MOV Minutes, #59           
+0050,80 D8,,     JMP NotDecHours            
+0052,02 00 70,,    JMP EndOfTimeSet         
 ,,,
 0055,,SetNotMinutes,   SetNotMinutes:
-0055,20 A2 18,,   JB P2.2, EndOfTimeSet        ;переход, если бит не установлен
-0058,20 B7 01,,    JB P3.7, NotIncSeconds      ;переход, если бит не установлен
-005B,0A,,     INC Seconds        ;увеличиваем секунды
+0055,20 A2 18,,   JB P2.2, EndOfTimeSet     
+0058,20 B7 01,,    JB P3.7, NotIncSeconds   
+005B,0A,,     INC Seconds        
 ,,,
 005C,,NotIncSeconds,    NotIncSeconds:
-005C,20 B6 01,,    JB P3.6, NotDecSeconds      ;переход, если бит не установлен
-005F,1A,,     DEC Seconds                        ; умньшаем секунды
+005C,20 B6 01,,    JB P3.6, NotDecSeconds      
+005F,1A,,     DEC Seconds                      
 ,,,
 0060,,NotDecSeconds,    NotDecSeconds:
-0060,BA 3C 05,,    CJNE Seconds, #60, ContinueSecondsCheck ;если секунды != 60, проверяем дальше
-0063,7A 00,,     MOV Seconds, #0    ;записываем 0 в секунды
-0065,09,,     INC Minutes                ;увеличиваем минуты
-0066,80 DA,,     JMP NotDecMinutes  ;переход к NotDecMinutes
+0060,BA 3C 05,,    CJNE Seconds, #60, ContinueSecondsCheck 
+0063,7A 00,,     MOV Seconds, #0    
+0065,09,,     INC Minutes         
+0066,80 DA,,     JMP NotDecMinutes
 ,,,
 0068,,ContinueSecondsCheck,    ContinueSecondsCheck:
-0068,BA FF 05,,    CJNE Seconds, #-1, EndOfTimeSet ;если секунды != -1, переходим к EndOfTimeSet
-006B,19,,     DEC Minutes                ;уменьшаем минуты
-006C,7A 3B,,     MOV Seconds, #59   ;уменьшаем секунды
-006E,80 D2,,     JMP NotDecMinutes  ;переход к NotDecMinutes
+0068,BA FF 05,,    CJNE Seconds, #-1, EndOfTimeSet 
+006B,19,,     DEC Minutes              
+006C,7A 3B,,     MOV Seconds, #59   
+006E,80 D2,,     JMP NotDecMinutes 
 ,,,
 0070,,EndOfTimeSet,   EndOfTimeSet:
 0070,75 33 0A,,   MOV  FlashInInterAdders, #10
@@ -104,7 +104,7 @@
 ,,,
 007B,,InterProc_TF0,  InterProc_TF0:
 007B,C2 8D,,   CLR  TF0
-007D,75 8C B1,,   MOV  TH0,  #high(0B1DFh)  ; загрузка таймера
+007D,75 8C B1,,   MOV  TH0,  #high(0B1DFh)  
 0080,75 8A DF,,   MOV  TL0,  #low(0B1DFh)
 0083,0E,,   INC  TickCounterT0
 0084,BE 19 78,,   CJNE TickCounterT0, #25, NotSufficientTicks  ; 0.5 sec
@@ -224,9 +224,9 @@
 014A,75 A0 FF,,  MOV  P2, #11111111b
 ,,,
 014D,30 A3 3F,,  JNB P2.3, TimeCountActivate
-0150,C2 8C,,   CLR  TR0     ; !!!
-0152,C2 8E,,   CLR  TR1     ; !!!
-0154,D2 A8,,   SETB EX0     ; !!!
+0150,C2 8C,,   CLR  TR0     
+0152,C2 8E,,   CLR  TR1     
+0154,D2 A8,,   SETB EX0     
 0156,,IfIntEX0,   IfIntEX0:
 0156,05 32,,   INC  ShowDigitsCounter
 0158,E5 32,,   MOV  A, ShowDigitsCounter
@@ -271,9 +271,9 @@
 01AE,75 34 0B,,    MOV  FastTimerLowAdders,  #low(0FE0Bh)
 01B1,85 35 8D,,    MOV  TH1,  FastTimerHighAdders
 01B4,85 34 8B,,    MOV  TL1,  FastTimerLowAdders
-01B7,C2 A8,,    CLR  EX0     ; !!!
-01B9,D2 8C,,    SETB TR0     ; !!!
-01BB,D2 8E,,    SETB TR1     ; !!!
+01B7,C2 A8,,    CLR  EX0     
+01B9,D2 8C,,    SETB TR0     
+01BB,D2 8E,,    SETB TR1     
 01BD,,TimeCountIsActive,  TimeCountIsActive:
 ,,,  ;
 01BD,,EndOfFlashing,  EndOfFlashing:
@@ -286,7 +286,7 @@
 01C2,75 90 00,,    mov P1, #0
 ,,,
 01C5,C5 F0,,    XCH  A, B
-01C7,B4 01 05,,    CJNE A, #1, PosNot_1  ; Сравнение регистра с константой, если не - переход
+01C7,B4 01 05,,    CJNE A, #1, PosNot_1  
 01CA,D2 80,,    SETB P0.0
 01CC,02 02 0A,,    JMP EndOfSetDigit
 01CF,,PosNot_1,    PosNot_1:
